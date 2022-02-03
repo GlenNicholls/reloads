@@ -1,0 +1,20 @@
+cards:
+  - name: some name for this amazon reload
+
+    # str 'username:password'
+    credentials: "foo:bar"
+
+    # str card number for verification
+    card: "1234123412341234"
+
+    # int purchases per month
+    purchases: 10
+
+    # [min,max] amount to reload. For a single amount set min and max to the same value.
+    amount_limits: [.5, .55]
+
+    # [min,max] days that can be reloaded on. If current day is equal to the max day,
+    # remainder of purchases will be run. To run all purchases on same day, set min and
+    # max to same value. If this is not present, all purchases will be run when script
+    # is run.
+    day_limits: [2, 27]
