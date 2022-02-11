@@ -1,73 +1,77 @@
-"""Reload Amazon gift card balances based on configuration files."""
+"""Reload API."""
+
+import argparse
+import logging
 
 from dataclasses import dataclass
-import time
+from pathlib import Path, PurePath
+from typing import Optional, Union, List
 
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from reload.amazon import Amazon
+from reload.configparser import parse_config, ReloadConfig
+from reload.utils import flatten
 
-from webdriver_manager.chrome import ChromeDriverManager
+logger = logging.getLogger(__name__)
 
+DEFAULT_CONFIG_FILE: PurePath = Path.cwd() / "reloads.yaml"
+"""Default configuration file.
 
-_URL: str = "https://www.amazon.com/asv/reload/"
-"""Amazon URL for purchasing gift card reloads."""
-
-_ID: dict = dict(
-    reload = "gcui-asv-reload-form-custom-amount",
-    buynow = "buyNow_feature_div",
-    usr = "ap_email",
-    pwd = "ap_password",
-    cont = "continue",
-    submit = "signInSubmit"
-)
-"""Amazon HTML IDs."""
+The default configuration file should be in the current working directory of the caller.
+"""
 
 
-@dataclass
-class Amazon:
-    username: str
-    password: str
+# TODO: provide option to update zipapp so script updates when user runs it
+# TODO: provide option to port/translate config file to latest version
+def cli() -> object:
+    """Create the command line interface."""
+
+    parser = argparse.ArgumentParser(description='CLI for Reload, the ')
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        default=False,
+        help="Enable verbosity/debug logging"
+    )
+    parser.add_argument(
+        "-f",
+        "--file",
+        dest="file",
+        action="append",  # "extend" only in py3.8+
+        nargs="+",
+        type=str,
+        help="Configuration file(s) to parse and run reloads from."
+    )
+
+    args = parser.parse_args()
+    args.file = flatten(file)
+    return args
 
 
-    def _wait_for_sign_in(self, timeout: float) -> None:
-        WebDriverWait(self._driver, timeout).until(EC.title_contains("Amazon Sign-In"))
+
+class Reload:
+    """Reload gift card balance based on configuration file."""
+
+    _configs: List[ReloadConfig]
+    """Card reload configurations."""
 
 
-    def _add_balance(self, amount: float) -> None:
-        # Add balance and submit
-        if amount >= 0.5:
-            self._driver.find_element(By.ID, _ID["reload"]).send_keys(amount)
-            self._driver.find_element(By.ID, _ID["buynow"]).click()
+    def __init__(self, config_file: Optional[Union[str, PurePath]] = None) -> None:
+        if config_file:
+            self._configs = parse_config(config_file)
         else:
-            raise ValueError("'amount' must be >= 0.5")
-
-        # Sign in with username and password
-        self._wait_for_sign_in(10)
-        self._driver.find_element(By.ID, _ID["usr"]).send_keys(self.username)
-        self._driver.find_element(By.ID, _ID["cont"]).click()
-
-        self._wait_for_sign_in(10)
-        self._driver.find_element(By.ID, _ID["pwd"]).send_keys(self.password)
-        self._driver.find_element(By.ID, _ID["submit"]).click()
+            logger.info(
+                f"'config_file' was not defined, defaulting to '{DEFAULT_CONFIG_FILE}'"
+            )
+            if not DEFAULT_CONFIG_FILE.exists():
+                raise FileNotFoundError(
+                    f"Default config file not found in current working dir '{DEFAULT_CONFIG_FILE}'"
+                )
+            self._configs = parse_config(config_file)
 
 
-    def reload_balance(self, amount: float) -> None:
-        # Configure driver
-        self._driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
-            options=webdriver.ChromeOptions()
-        )
-
-        # Navigate to reload URL
-        self._driver.get(_URL)
-
-        # Add balance
-        self._add_balance(amount)
+#class Cache:
 
 
-if __name__ == "__main__":
-    amzn = Amazon("dkillers303@gmail.com", "bar")
-    amzn.reload_balance(0.5)
+#if __name__ == "__main__":

@@ -1,3 +1,5 @@
+version: 0.1
+
 cards:
   - name: some name for this amazon reload
 
