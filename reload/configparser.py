@@ -6,6 +6,7 @@ file parsing and validation.
 
 import logging
 import yaml
+
 from dataclasses import dataclass
 from pathlib import Path, PurePath
 from typing import Callable, List, Optional, Union, Sequence, Tuple
@@ -38,17 +39,16 @@ class ReloadConfig:
     """Number of purchases to complete per month."""
 
     amounts: Tuple[float, float]
-    """"Minimum and maximum range of amounts to reload.
+    """"Range of amounts to reload.
 
     This is in format (min,max). To set a single amount instead of a range, set min and
     max to the same value.
     """
 
-    days: Tuple[int, int]
-    """Minimum and maximum range for days to reload.
+    days: Optional[Tuple[int, int]] = (1, 28)
+    """Range for days that reloads can be run on.
 
-    This is in format (min,max). To set a single day instead of a range, set min and max
-    to the same value.
+    This is in format (min,max). This defaults to (1,28) to account for February.
     """
 
 
@@ -70,29 +70,22 @@ def parse_config(file: Union[str, PurePath]) -> Sequence[ReloadConfig]:
         data = yaml.safe_load(f)
 
     for card in data["cards"]:
-        cfg: ReloadConfig
-
-        # Get name/alias of reload
-        cfg.name = card["name"]
         logger.info(f"Found card reload named '{cfg.name}', adding config.")
 
-        # Get credentials
-        cfg.username, cfg.password = card["credentials"].split(":")
-
-        # Get card number
-        cfg.card = card["card"]
-
-        # Get purchases
-        cfg.purchases = card["purchases"]
-
-        # Get amount limits
-        cfg.amounts = tuple(card["amount_limits"])
-
-        # Get day limits
         if "day_limits" in card:
-            cfg.days = tuple(card["day_limits"])
+            days = tuple(card["day_limits"])
         else:
-            cfg.days = (None, None)
+            days = (None, None)
+
+        cfg = ReloadConfig(
+            name=card["name"],
+            username=card["credentials"].split(":")[0],
+            password=card["credentials"].split(":")[1],
+            card=card["card"],
+            purchases=card["purchases"],
+            amounts=tuple(card["amount_limits"]),
+            days=days,
+        )
 
         # add to list
         configs.append(cfg)
