@@ -27,12 +27,6 @@ _ID: dict = dict(
 )
 """Amazon HTML IDs."""
 
-_DRIVER = webdriver.Chrome(
-    service=Service(ChromeDriverManager().install()),
-    options=webdriver.ChromeOptions()
-)
-"""Google Chrome web driver install and init."""
-
 
 @dataclass
 class Amazon:
@@ -40,10 +34,13 @@ class Amazon:
     password: str
     card: str
 
+    _DRIVER: object = None
+    """Google Chrome web driver install and init."""
+
 
     def _wait_for_sign_in(self, timeout: float) -> None:
         logger.debug("Waiting for sign in page to load.")
-        WebDriverWait(_DRIVER, timeout).until(EC.title_contains("Amazon Sign-In"))
+        WebDriverWait(self._DRIVER, timeout).until(EC.title_contains("Amazon Sign-In"))
 
 
     # TODO: add ability to prompt user to confirm before clicking buy now
@@ -52,21 +49,25 @@ class Amazon:
             raise ValueError("'amount' must be >= 0.5")
         # Navigate to reload URL
         logger.info(f"Navigating to '{_URL}'")
-        _DRIVER.get(_URL)
+        self._DRIVER = webdriver.Chrome(
+            service=Service(ChromeDriverManager().install()),
+            options=webdriver.ChromeOptions()
+        )
+        self._DRIVER.get(_URL)
 
         # Sign in with username and password
         logger.info("Entering credentials.")
         self._wait_for_sign_in(10)
-        _DRIVER.find_element(By.ID, _ID["usr"]).send_keys(self.username)
-        _DRIVER.find_element(By.ID, _ID["cont"]).click()
+        self._DRIVER.find_element(By.ID, _ID["usr"]).send_keys(self.username)
+        self._DRIVER.find_element(By.ID, _ID["cont"]).click()
 
         self._wait_for_sign_in(10)
-        _DRIVER.find_element(By.ID, _ID["pwd"]).send_keys(self.password)
-        _DRIVER.find_element(By.ID, _ID["submit"]).click()
+        self._DRIVER.find_element(By.ID, _ID["pwd"]).send_keys(self.password)
+        self._DRIVER.find_element(By.ID, _ID["submit"]).click()
 
         # Add balance and submit
         logger.info(f"Reloading gift card balance with ${amount}.")
-        _DRIVER.find_element(By.ID, _ID["reload"]).send_keys(amount)
-        _DRIVER.find_element(By.ID, _ID["buynow"]).click()
+        self._DRIVER.find_element(By.ID, _ID["reload"]).send_keys(amount)
+        self._DRIVER.find_element(By.ID, _ID["buynow"]).click()
 
         return True

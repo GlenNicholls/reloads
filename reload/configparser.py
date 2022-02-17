@@ -5,6 +5,7 @@ file parsing and validation.
 """
 
 import logging
+import random
 import yaml
 
 from dataclasses import dataclass
@@ -45,11 +46,46 @@ class ReloadConfig:
     max to the same value.
     """
 
+    burst: bool = False
+    """Burst purchases.
+
+    When true, randomly select an amount of purchases to run between 1 and
+    :data:`reload/configparser.ReloadConfig.purchases`. Useful to add some randomness.
+    to purchasing.
+
+    .. note::
+        When this is enabled, the time between purchases will be random between 1 and
+        5 seconds.
+    """
+
     days: Optional[Tuple[int, int]] = (1, 28)
     """Range for days that reloads can be run on.
 
     This is in format (min,max). This defaults to (1,28) to account for February.
     """
+
+
+    def rand_amount(self) -> float:
+        """Get a random amount between min/max rounded to 2 decimal places."""
+        return round(random.uniform(self.amounts[0], self.amounts[1]), 2)
+
+
+    def rand_day(self) -> int:
+        """Get a random day between min/max."""
+        return random.randint(self.days[0], self.days[1])
+
+
+    def rand_burst(self, num_complete: int) -> int:
+        """Get a random amount of purchases to run.
+
+        This will use ``num_complete`` to ensure the value provided does not exceed the
+        number of purchases to complete each month.
+
+        Args:
+            num_complete:
+                The number of purchases already complete for the month.
+        """
+        return random.randint(1, self.purchases-num_complete)
 
 
 # TODO: Add schema validator using jsonschema
@@ -70,7 +106,8 @@ def parse_config(file: Union[str, PurePath]) -> Sequence[ReloadConfig]:
         data = yaml.safe_load(f)
 
     for card in data["cards"]:
-        logger.info(f"Found card reload named '{cfg.name}', adding config.")
+        name = card["name"]
+        logger.info(f"Found card reload named '{name}', adding config.")
 
         if "day_limits" in card:
             days = tuple(card["day_limits"])
@@ -78,7 +115,7 @@ def parse_config(file: Union[str, PurePath]) -> Sequence[ReloadConfig]:
             days = (None, None)
 
         cfg = ReloadConfig(
-            name=card["name"],
+            name=name,
             username=card["credentials"].split(":")[0],
             password=card["credentials"].split(":")[1],
             card=card["card"],

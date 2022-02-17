@@ -16,11 +16,6 @@ cards:
     # between 1 and `purchases`. Useful if the script isn't always running.
     burst: true
 
-    # if burst is enabled, you can select an amount of time to wait between purchases.
-    # If >0, this will randomly generate a number of seconds to wait between burst
-    # purchases 0 < wait_in_sec <= burst_wait.
-    burst_wait: 2.0
-
     # [min,max] amount to reload. For a single amount set min and max to the same value.
     amount_limits: [.5, .55]
 
