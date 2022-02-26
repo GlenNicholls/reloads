@@ -18,5 +18,5 @@ if __name__ == "__main__":
     config_logger(filename=args.log_file, level=log_level)
 
     # Run reloads.
-    reload = Reload(config_file=args.file)#, prompt_user=args.prompt)
-    reload.run()
+    reload = Reload(config_file=args.config_file)#, prompt_user=args.prompt)
+    reload.run(args.force_reload)

@@ -86,9 +86,8 @@ def config_logger(
     if filename:
         filename = Path(filename).resolve()
         if not filename.parent.exists():
-            logger.info(f"{filename} does not exist, creating")
+            logger.info(f"{filename.parent} does not exist, creating")
             filename.parent.mkdir(parents=True)
-        logger.info(f"Logs will be saved to '{filename}'")
         fh = RotatingFileHandler(
             filename,
             mode=file_mode,
@@ -99,6 +98,13 @@ def config_logger(
         fh.setLevel(file_level)
         fh.setFormatter(logging.Formatter(fmt=file_format, datefmt=file_datefmt))
         root_logger.addHandler(fh)
+
+        # log information and create break in log file that makes it easier to find a
+        # specific session when append is used
+        logger.debug("="*50)
+        logger.debug(f"Log session starts")
+        logger.info(f"Logs will be saved to '{filename}'")
+        logger.debug("="*50)
 
 
 def flatten(nested_list: list) -> list:
@@ -127,7 +133,7 @@ def load_state(state_name: str, state_file: Union[str, PurePath]) -> Optional[ob
         logger.debug(f"State file does not exist yet '{state_file}'")
         return None
 
-    with shelve.open(state_file) as db:
+    with shelve.open(str(state_file)) as db:
         if state_name in db:
             return db[state_name]
         else:
@@ -140,6 +146,5 @@ def load_state(state_name: str, state_file: Union[str, PurePath]) -> Optional[ob
 
 def save_state(obj: object, state_name: str, state_file: Union[str, PurePath]) -> None:
     logger.info(f"Saving state of '{state_name}' to '{state_file}' database.")
-    logger.info(f"State being saved is {obj}")
-    with shelve.open(state_file) as db:
+    with shelve.open(str(state_file)) as db:
         db[state_name] = obj

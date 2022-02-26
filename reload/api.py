@@ -41,17 +41,9 @@ def cli() -> object:
 
     parser = argparse.ArgumentParser(description=reload.__doc__)
     parser.add_argument(
-        "-v",
-        "--verbose",
-        dest="verbose",
-        action="store_true",
-        default=False,
-        help="Enable verbosity/debug logging"
-    )
-    parser.add_argument(
-        "-f",
-        "--file",
-        dest="file",
+        "-c",
+        "--config-file",
+        dest="config_file",
         type=str,
         default=str(DEFAULT_CONFIG_FILE),
         help=(
@@ -66,10 +58,30 @@ def cli() -> object:
         type=str,
         default=str(DEFAULT_LOG_FILE),
         help=(
-            "Log file to save logs to. Defaults to  ``<CWD>/reloads.log``. The log file"
+            "Log file to save logs to. Defaults to ``<CWD>/reloads.log``. The log file"
             " will be rotated after it reaches a certain size and 5 backups will be"
             " maintained."
         )
+    )
+    parser.add_argument(
+        "-f",
+        "--force-reload",
+        dest="force_reload",
+        action="store_true",
+        default=False,
+        help=(
+            "Force purchases/reloads to be run no matter what. This is useful for"
+            " debugging or when you have purchases remaining at the end of the month."
+            " IMPORTANT, this will force purchases to be run for each card."
+        )
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        default=False,
+        help="Enable verbosity/debug logging"
     )
     #parser.add_argument(
     #    "-p",
@@ -146,6 +158,9 @@ class Reload:
 
         if state is None:
             # State does not exist so create it.
+            logger.debug(
+                f"Database state for '{config.name}' does not exist, creating..."
+            )
             state = ReloadState(config=config)
         elif state.config != config:
             # If the configuration has changed, reset the state config
@@ -154,7 +169,8 @@ class Reload:
                 # still valid.
                 logger.info(
                     f"Config does not match database state for '{config.name}'."
-                    " Resetting cache of config but keeping the completed purchases."
+                    " Resetting cache of config but keeping the completed purchases"
+                    " because card did not change."
                 )
                 state.config = config
             else:
@@ -225,8 +241,7 @@ class Reload:
             if now.month != new_date.month:
                 # Not all purchases were complete so raise error
                 logger.error(f"Did not complete all purchases this month.")
-
-            if new_date.day > max_day:
+            elif new_date.day > max_day:
                 # Not all purchases can be complete because the next day exceeds the
                 # maximum day configured for a month. Raise an error and set next
                 # purchase day to first valid day the following month.
@@ -255,7 +270,7 @@ class Reload:
 
         return state
 
-    def run(self):
+    def run(self, force: bool = False):
         for config in self._configs:
             # Get the state of the config from the database/cache
             state = self.get_state(config)
@@ -265,9 +280,11 @@ class Reload:
             # within month boundaries for purchasing.
             now = datetime.now()
             if (
-                min_day <= now.day <= max_day
-                and now >= state.next_purchase_date
-                and state.num_complete < state.config.purchases
+                force or (
+                    min_day <= now.day <= max_day
+                    and now >= state.next_purchase_date
+                    and state.num_complete < state.config.purchases
+                )
             ):
                 state = self.run_purchases(state)
 
